@@ -285,3 +285,5 @@ main() {
 		clear
 	done
 }
+
+main
