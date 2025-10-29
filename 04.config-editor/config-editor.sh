@@ -2,7 +2,7 @@
 
 ################################################
 # Configuration editor toolkit
-# Author: samiulAsumel
+# Author: samiulAsumel 
 ################################################
 
 # Color codes for output
