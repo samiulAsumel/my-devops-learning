@@ -13,6 +13,7 @@ SCAN_PATH=(
 	"/var/www"
 	"/opt"
 	"/usr/local"
+	"/"
 )
 
 echo "=== TechCorp Permission Audit ===" | tee -a "$AUDIT_LOG"
