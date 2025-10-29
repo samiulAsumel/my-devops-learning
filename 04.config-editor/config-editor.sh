@@ -161,7 +161,7 @@ restore_backup() {
 		echo " $((i+1)). $(basename "${backups[$i]}")"
 	done
 
-	read -p "Select backup number to restore (or 0 to cancle): " choice
+	read -p "Select backup number to restore (or 0 to chancel): " choice
 
 	if [[ "$choice" -gt 0 && "$choice" -le "${#backups[@]}" ]]; then
 		local selected_backup="${backups[$((choice-1))]}"
@@ -178,7 +178,7 @@ restore_backup() {
 	fi
 }
 
-# Function: Validate configuration syntex
+# Function: Validate configuration syntax
 validate_config() {
 	local file=$1
 
