@@ -22,9 +22,9 @@ LOG_FILE="$HOME/ssh-deployment-$(date +%Y%m%d-%H%M%S).log"
 # Server inventory (Format: nickname:hostname:user:keyname)
 SERVERS=(
 	"dev-web:192.168.56.11:devops:techcorp_dev_rsa"
-    "dev-db:192.168.56.12:devops:techcorp_dev_rsa"
-    "stage-web:192.168.56.21:devops:techcorp_stage_rsa"
-    "stage-db:192.168.56.22:devops:techcorp_stage_rsa"
+	"dev-db:192.168.56.12:devops:techcorp_dev_rsa"
+	"stage-web:192.168.56.21:devops:techcorp_stage_rsa"
+	"stage-db:192.168.56.22:devops:techcorp_stage_rsa"
 	"prod-web:192.168.56.31:devops:techcorp_prod_rsa"
 	"prod-db:192.168.56.32:devops:techcorp_prod_rsa"
 )
@@ -33,7 +33,7 @@ SERVERS=(
 log_message() {
 	local level=$1
 	shift
-	local message="$@"
+	local message="$*"
 	echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $message" | tee -a "$LOG_FILE"
 }
 
@@ -68,7 +68,7 @@ deploy_key_to_server() {
 	local keyname=$4
 
 	local public_key_path="${KEY_DIR}/${keyname}.pub"
-	local_private_key_path="${KEY_DIR}/${keyname}"
+	local local_private_key_path="${KEY_DIR}/${keyname}"
 
 	# Verify key files exist
 	if [[ ! -f "$public_key_path" ]]; then
@@ -84,7 +84,7 @@ deploy_key_to_server() {
 	log_message "INFO" "Deploying key to $nickname ($hostname)..."
 
 	# Deploy key using ssh-copy-id
-	if ssh-copy-id -i "$public_key_path" -o StaticHostKeyChecking=no "$username@hostbname" &>> "$LOG_FILE"; then
+	if ssh-copy-id -i "$public_key_path" -o StrictHostKeyChecking=no "$username@$hostname" &>> "$LOG_FILE"; then
 		log_message "INFO" "Successfully deployed key to $nickname."
 	else
 		log_message "ERROR" "Failed to deploy key to $nickname."
@@ -92,7 +92,7 @@ deploy_key_to_server() {
 	fi
 
 	# Test Connection
-	if ssh -o BatchMode=yes -o ConnectTimeout=5 -o StaticHostKeyChecking=no -i "$local_private_key_path" "$username@$hostname" 'echo "Connection successful."' &>> "$LOG_FILE"; then
+	if ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no -i "$local_private_key_path" "$username@$hostname" 'echo "Connection successful."' &>> "$LOG_FILE"; then
 		log_message "INFO" "Connection test to $nickname successful."
 	else
 		log_message "ERROR" "Connection test to $nickname failed."
@@ -123,9 +123,9 @@ generate_ssh_config() {
 		echo "Host *"
 		echo "	StrictHostKeyChecking no"
 		echo "	UserKnownHostsFile=/dev/null"
-		echo "  ServerAliveInterval 60"
-		echo "  ServerAliveCountMax 5"
-		echo ""	Compression yes
+		echo "	ServerAliveInterval 60"
+		echo "	ServerAliveCountMax 5"
+		echo "	Compression yes"
 		echo ""
 
 		for server in "${SERVERS[@]}"; do
@@ -138,4 +138,56 @@ generate_ssh_config() {
 			echo ""
 		done
 	} > "$config_file"
+
+	chmod 600 "$config_file"
+	log_message "INFO" "SSH config file generated successfully."
 }
+
+display_summary() {
+	local success=$1
+	local failure=$2
+
+	echo ""
+	echo -e "${BLUE}========================================${NC}"
+	echo -e "${GREEN}      Deployment Summary          ${NC}"
+	echo -e "Successful deployments: ${GREEN}$success${NC}"
+	echo -e "Failed deployments: ${RED}$failure${NC}"
+	echo -e "Log file: ${YELLOW}$LOG_FILE${NC}"
+	echo -e "${BLUE}========================================${NC}"
+}
+
+# Main Script Execution
+main() {
+	print_header
+	check_prerequisites
+
+	local success_count=0
+	local failure_count=0
+
+	echo ""
+	echo -e "${YELLOW}Starting key deployment to ${#SERVERS[@]} servers...${NC}"
+	echo ""
+
+	for server in "${SERVERS[@]}"; do
+		IFS=':' read -r nickname hostname username keyname <<< "$server"
+
+		if deploy_key_to_server "$nickname" "$hostname" "$username" "$keyname"; then
+			((success_count++))
+		else
+			((failure_count++))
+		fi
+		echo ""
+	done
+
+	generate_ssh_config
+	display_summary "$success_count" "$failure_count"
+
+	if [[ $failure_count -eq 0 ]]; then
+		log_message "INFO" "SSH Key Deployment completed successfully for all servers."
+	else
+		log_message "WARNING" "SSH Key Deployment completed with some failures."
+	fi
+}
+
+# Run main function
+main
